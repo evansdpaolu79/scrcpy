@@ -88,6 +88,10 @@ struct sc_screen {
     enum sc_orientation orientation;
     // rectangle of the content (excluding black borders)
     struct SDL_FRect rect;
+
+    // Video zoom factor (1.0 = normal size)
+    float zoom;
+
     bool window_shown;
 
     // only accessed from the thread calling sc_frame_sink_ops functions
