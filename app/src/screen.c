@@ -250,6 +250,17 @@ sc_screen_update_content_rect(struct sc_screen *screen) {
     compute_content_rect(window_size, screen->content_size,
                          screen->is_icon_active, screen->render_fit,
                          &screen->rect);
+
+    // Zoom the video around the center of the window. Keep the disconnected
+    // icon at its normal size.
+    if (!screen->is_icon_active && screen->zoom != 1.0f) {
+        float width = screen->rect.w * screen->zoom;
+        float height = screen->rect.h * screen->zoom;
+        screen->rect.x = ((float) window_size.width - width) / 2.0f;
+        screen->rect.y = ((float) window_size.height - height) / 2.0f;
+        screen->rect.w = width;
+        screen->rect.h = height;
+    }
 }
 
 // render the texture to the renderer
@@ -520,6 +531,7 @@ sc_screen_init(struct sc_screen *screen,
     screen->controller = params->controller;
 
     screen->resize_pending = false;
+    screen->zoom = 1.0f;
     screen->window_shown = false;
     screen->paused = false;
     screen->resume_frame = NULL;
@@ -1171,6 +1183,30 @@ sc_disconnect_on_timeout(struct sc_disconnect *d, void *userdata) {
 void
 sc_screen_handle_event(struct sc_screen *screen, const SDL_Event *event) {
     switch (event->type) {
+        case SDL_EVENT_KEY_DOWN:
+            if (event->key.mod & SDL_KMOD_CTRL) {
+                bool zoom_changed = true;
+                switch (event->key.key) {
+                    case SDLK_UP:
+                        screen->zoom = MIN(screen->zoom + 0.1f, 3.0f);
+                        break;
+                    case SDLK_DOWN:
+                        screen->zoom = MAX(screen->zoom - 0.1f, 1.0f);
+                        break;
+                    case SDLK_0:
+                        screen->zoom = 1.0f;
+                        break;
+                    default:
+                        zoom_changed = false;
+                        break;
+                }
+
+                if (zoom_changed) {
+                    sc_screen_render(screen, true);
+                    return;
+                }
+            }
+            break;
         case SC_EVENT_OPEN_WINDOW: {
             struct sc_size *size = event->user.data1;
             assert(size);
